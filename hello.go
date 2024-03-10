@@ -195,34 +195,111 @@
 // 	json.NewEncoder(w).Encode(videos)
 // }
 
+// package main
+
+// import (
+// 	"encoding/json"
+// 	"fmt"
+// 	"log"
+// 	"net/http"
+// )
+
+// func main() {
+// 	// URL endpoint yang akan di-fetch
+// 	url := "https://yourtube-six.vercel.app/api/trpc/video.getRandomVideo?batch=1&input=%7B%220%22%3A%7B%22json%22%3A40%7D%7D"
+
+// 	// Lakukan HTTP GET request ke URL
+// 	response, err := http.Get(url)
+// 	if err != nil {
+// 		log.Fatalf("Failed to fetch data : %v", err)
+// 	}
+// 	defer response.Body.Close()
+
+// 	// Dekode response JSON ke dalam slice yang sesuai
+// 	var jsonData []interface{}
+// 	if err := json.NewDecoder(response.Body).Decode(&jsonData); err != nil {
+// 		log.Fatalf("Failed to decode JSON: %v", err)
+// 	}
+
+// 	// Cetak data yang diambil dari response JSON
+// 	for index, item := range jsonData {
+// 		fmt.Printf("Item %d: %+v\n", index, item)
+// 	}
+// }
+
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
+// Struct untuk menyimpan informasi pengguna
+type User struct {
+	ID       int    `json:"id"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+var db *sql.DB
+
 func main() {
-	// URL endpoint yang akan di-fetch
-	url := "https://yourtube-six.vercel.app/api/trpc/video.getRandomVideo?batch=1&input=%7B%220%22%3A%7B%22json%22%3A40%7D%7D"
-
-	// Lakukan HTTP GET request ke URL
-	response, err := http.Get(url)
+	// Koneksi ke database MySQL
+	var err error
+	db, err = sql.Open("mysql", "root:root@tcp(127.0.0.1:3306)/golangtest")
 	if err != nil {
-		log.Fatalf("Failed to fetch data : %v", err)
+		log.Fatal(err)
 	}
-	defer response.Body.Close()
+	defer db.Close()
 
-	// Dekode response JSON ke dalam slice yang sesuai
-	var jsonData []interface{}
-	if err := json.NewDecoder(response.Body).Decode(&jsonData); err != nil {
-		log.Fatalf("Failed to decode JSON: %v", err)
+	// Membuat tabel pengguna jika belum ada
+	createTable()
+
+	// Menjalankan server HTTP
+	http.HandleFunc("/login", handleLogin)
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+// Membuat tabel pengguna jika belum ada
+func createTable() {
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS users (
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		username VARCHAR(50) UNIQUE NOT NULL,
+		password VARCHAR(255) NOT NULL
+	)`)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// Handler untuk proses login
+func handleLogin(w http.ResponseWriter, r *http.Request) {
+	// Parse request body
+	var user User
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
-	// Cetak data yang diambil dari response JSON
-	for index, item := range jsonData {
-		fmt.Printf("Item %d: %+v\n", index, item)
+	// Query ke database untuk mencari user dengan username dan password yang sesuai
+	row := db.QueryRow("SELECT id FROM users WHERE username = ? AND password = ?", user.Username, user.Password)
+	var userID int
+	err = row.Scan(&userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	// Jika user ditemukan, kirim response sukses
+	response := map[string]string{"message": "Login successful"}
+	json.NewEncoder(w).Encode(response)
 }
