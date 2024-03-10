@@ -120,37 +120,109 @@
 // 	}
 // }
 
+// package main
+
+// import (
+// 	"fmt"
+// 	"math/rand"
+// 	"time"
+// )
+
+// func main() {
+// 	// Membuat seed acak berdasarkan waktu
+// 	rand.Seed(time.Now().UnixNano())
+
+// 	// Menghasilkan angka acak antara 1 dan 100
+// 	secretNumber := rand.Intn(100) + 1
+// 	fmt.Println("Halo! Ayo main tebak angka.")
+// 	fmt.Println("Saya telah memilih sebuah angka antara 1 dan 100.")
+
+// 	// Menebak angka
+// 	var guess int
+// 	for {
+// 		fmt.Print("Tebak angka: ")
+// 		fmt.Scanln(&guess)
+
+// 		// Memeriksa tebakan
+// 		if guess < secretNumber {
+// 			fmt.Println("Terlalu kecil! Coba lagi.")
+// 		} else if guess > secretNumber {
+// 			fmt.Println("Terlalu besar! Coba lagi.")
+// 		} else {
+// 			fmt.Println("Selamat! Anda menebak dengan benar!")
+// 			break
+// 		}
+// 	}
+// }
+
+// package main
+
+// import (
+// 	"encoding/json"
+// 	"log"
+// 	"net/http"
+// )
+
+// // Struct untuk menyimpan data video
+// type Video struct {
+// 	ID    string `json:"id"`
+// 	Title string `json:"title"`
+// 	Description string `json:"desc"`
+// }
+
+// func main() {
+// 	// Mendaftarkan handler untuk route "/videos"
+// 	http.HandleFunc("/videos", getVideos)
+
+// 	// Mulai server pada port 8080
+// 	log.Println("Server is running on port 8080...")
+// 	log.Fatal(http.ListenAndServe(":8080", nil))
+// }
+
+// // Handler untuk route "/videos"
+// func getVideos(w http.ResponseWriter, r *http.Request) {
+// 	// Membuat data dummy video
+// 	videos := []Video{
+// 		{ID: "1", Title: "Video 1"},
+// 		{ID: "2", Title: "Video 2"},
+// 		{ID: "3", Title: "Video 3", Description: "apa aaja"},
+// 	}
+
+// 	// Set header Content-Type ke application/json
+// 	w.Header().Set("Content-Type", "application/json")
+
+// 	// Mengirim response berupa JSON yang berisi data video
+// 	json.NewEncoder(w).Encode(videos)
+// }
+
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"math/rand"
-	"time"
+	"log"
+	"net/http"
 )
 
 func main() {
-	// Membuat seed acak berdasarkan waktu
-	rand.Seed(time.Now().UnixNano())
+	// URL endpoint yang akan di-fetch
+	url := "https://yourtube-six.vercel.app/api/trpc/video.getRandomVideo?batch=1&input=%7B%220%22%3A%7B%22json%22%3A40%7D%7D"
 
-	// Menghasilkan angka acak antara 1 dan 100
-	secretNumber := rand.Intn(100) + 1
-	fmt.Println("Halo! Ayo main tebak angka.")
-	fmt.Println("Saya telah memilih sebuah angka antara 1 dan 100.")
+	// Lakukan HTTP GET request ke URL
+	response, err := http.Get(url)
+	if err != nil {
+		log.Fatalf("Failed to fetch data : %v", err)
+	}
+	defer response.Body.Close()
 
-	// Menebak angka
-	var guess int
-	for {
-		fmt.Print("Tebak angka: ")
-		fmt.Scanln(&guess)
+	// Dekode response JSON ke dalam slice yang sesuai
+	var jsonData []interface{}
+	if err := json.NewDecoder(response.Body).Decode(&jsonData); err != nil {
+		log.Fatalf("Failed to decode JSON: %v", err)
+	}
 
-		// Memeriksa tebakan
-		if guess < secretNumber {
-			fmt.Println("Terlalu kecil! Coba lagi.")
-		} else if guess > secretNumber {
-			fmt.Println("Terlalu besar! Coba lagi.")
-		} else {
-			fmt.Println("Selamat! Anda menebak dengan benar!")
-			break
-		}
+	// Cetak data yang diambil dari response JSON
+	for index, item := range jsonData {
+		fmt.Printf("Item %d: %+v\n", index, item)
 	}
 }
